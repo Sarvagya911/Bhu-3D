@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Spatial Audit & Encroachment Detection | Bhu-3D Cadastre{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- Header Banner -->
+    <div class="rounded-2xl bg-gradient-to-r from-slate-900 via-rose-950/40 to-slate-900 border border-slate-800 p-8 shadow-xl">
+        <div class="space-y-2">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold">
+                <i class="fa-solid fa-triangle-exclamation"></i> Automated 3D Regulatory Compliance Engine
+            </div>
+            <h1 class="text-3xl font-extrabold text-white">Spatial Audit & Volumetric Conflict Detection</h1>
+            <p class="text-slate-300 text-sm max-w-3xl">
+                Real-time algorithmic spatial verification against Master Plan building height restrictions, Floor Area Ratio (FAR) ceilings, and volumetric strata collisions in 3D $(X, Y, Z)$ coordinate space.
+            </p>
+        </div>
+    </div>
+
+    <!-- Audit Summary Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+            <div class="text-xs font-semibold text-slate-400 uppercase">Structures Audited</div>
+            <div class="text-2xl font-bold text-white mt-2">{{ audit_results|length }} Buildings</div>
+            <p class="text-xs text-slate-500 mt-1">Checked against Master Plan Master Envelope</p>
+        </div>
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+            <div class="text-xs font-semibold text-slate-400 uppercase">Detected Violations</div>
+            <div class="text-2xl font-bold text-rose-400 mt-2">{{ logs|length }} Active Alerts</div>
+            <p class="text-xs text-slate-500 mt-1">Height & unauthorized strata extensions</p>
+        </div>
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+            <div class="text-xs font-semibold text-slate-400 uppercase">Spatial Algorithm</div>
+            <div class="text-2xl font-bold text-emerald-400 mt-2">ISO 19152 LADM</div>
+            <p class="text-xs text-slate-500 mt-1">3D AABB Volumetric Intersection Detection</p>
+        </div>
+    </div>
+
+    <!-- Audit Results per Building -->
+    <div class="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl space-y-6 p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-clipboard-check text-amber-400"></i> Cadastral Structure Compliance Status
+                </h3>
+                <p class="text-xs text-slate-400">Automated height and volumetric envelope verification per building.</p>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            {% for res in audit_results %}
+            <div class="p-6 rounded-xl bg-slate-950 border {% if res.status == 'VIOLATION' %}border-rose-500/50 shadow-rose-950/20 shadow-lg{% else %}border-slate-800{% endif %} space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h4 class="text-base font-bold text-white">{{ res.building.name }}</h4>
+                            <span class="px-2.5 py-0.5 rounded text-[10px] font-bold {% if res.status == 'VIOLATION' %}bg-rose-500/20 text-rose-400 border border-rose-500/40{% else %}bg-emerald-500/20 text-emerald-400 border border-emerald-500/40{% endif %}">
+                                {{ res.status }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400">Parcel: <span class="font-mono text-slate-300">{{ res.parcel.ulpin_2d }}</span> | {{ res.parcel.address }}</p>
+                    </div>
+                    <a href="{% url 'explorer_3d' %}?parcel_id={{ res.parcel.id }}" class="px-3.5 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-semibold text-xs flex items-center gap-1.5 transition whitespace-nowrap">
+                        <i class="fa-solid fa-cube text-amber-400"></i> Inspect in 3D &rarr;
+                    </a>
+                </div>
+
+                <!-- Parameters Comparison -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-mono">
+                    <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+                        <span class="text-slate-500 text-[10px] uppercase font-sans block">Sanctioned Height Limit</span>
+                        <span class="text-sm font-bold text-slate-300">{{ res.sanctioned_height }} meters</span>
+                    </div>
+                    <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+                        <span class="text-slate-500 text-[10px] uppercase font-sans block">Constructed Height</span>
+                        <span class="text-sm font-bold {% if res.height_violation %}text-rose-400{% else %}text-emerald-400{% endif %}">
+                            {{ res.actual_height }} meters
+                        </span>
+                    </div>
+                    <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+                        <span class="text-slate-500 text-[10px] uppercase font-sans block">Sanctioned FAR</span>
+                        <span class="text-sm font-bold text-slate-300">{{ res.sanctioned_far }}</span>
+                    </div>
+                    <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+                        <span class="text-slate-500 text-[10px] uppercase font-sans block">Constructed FAR</span>
+                        <span class="text-sm font-bold {% if res.far_violation %}text-rose-400{% else %}text-emerald-400{% endif %}">
+                            {{ res.actual_far }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Violation Details if Height Exceeded -->
+                {% if res.height_violation %}
+                <div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs space-y-2">
+                    <div class="font-bold text-rose-400 flex items-center gap-2">
+                        <i class="fa-solid fa-triangle-exclamation"></i> MAXIMUM HEIGHT LIMIT BREACH: Exceeds sanctioned limit by {{ res.excess_height }} meters!
+                    </div>
+                    <p class="text-slate-300">
+                        The structure rises to <strong>{{ res.actual_height }}m</strong> against the authorized Master Plan envelope of <strong>{{ res.sanctioned_height }}m</strong>. The upper floors infringe upon regulated airspace and lack statutory Occupancy Certificate approval.
+                    </p>
+                    {% if res.violating_units %}
+                    <div class="pt-2">
+                        <span class="font-semibold text-rose-400 block mb-1">Encroaching Volumetric Units:</span>
+                        <div class="flex flex-wrap gap-2">
+                            {% for vu in res.violating_units %}
+                            <a href="{% url 'bhu_aadhaar_card' vu.ulpin_3d %}" class="px-2.5 py-1 rounded bg-rose-950/80 border border-rose-500/50 text-rose-200 hover:bg-rose-900 transition flex items-center gap-1.5 font-mono">
+                                <i class="fa-solid fa-cube text-[10px]"></i> {{ vu.unit_number }} (Z: {{ vu.z_min_meters }}m - {{ vu.z_max_meters }}m)
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Audit Event Log Table -->
+    <div class="rounded-2xl bg-slate-900 border border-slate-800 p-6 space-y-4">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i> Spatial Encroachment Audit Trail
+        </h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+                    <tr>
+                        <th class="p-3">Structure</th>
+                        <th class="p-3">Conflict Type</th>
+                        <th class="p-3">Severity</th>
+                        <th class="p-3">Overlap Volume</th>
+                        <th class="p-3">Details</th>
+                        <th class="p-3">Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800">
+                    {% for l in logs %}
+                    <tr class="hover:bg-slate-800/40">
+                        <td class="p-3 font-semibold text-slate-200">{{ l.building.name }}</td>
+                        <td class="p-3 text-amber-400 font-mono">{{ l.get_conflict_type_display }}</td>
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if l.severity == 'CRITICAL' %}bg-rose-500/20 text-rose-400{% else %}bg-amber-500/20 text-amber-400{% endif %}">
+                                {{ l.severity }}
+                            </span>
+                        </td>
+                        <td class="p-3 font-mono text-emerald-400">{{ l.overlap_volume_m3 }} m³</td>
+                        <td class="p-3 text-slate-300 max-w-xs">{{ l.details }}</td>
+                        <td class="p-3 text-slate-500 font-mono text-[10px]">{{ l.detected_at|date:"d-M-Y H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

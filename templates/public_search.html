@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Property Verification Portal | Bhu-3D Cadastre{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- Header Banner -->
+    <div class="rounded-2xl bg-gradient-to-r from-slate-900 via-emerald-950/40 to-slate-900 border border-slate-800 p-8 shadow-xl text-center space-y-4">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
+            <i class="fa-solid fa-check-double"></i> Public Cadastral Verification
+        </div>
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-white">Citizen & Registrar 3D Property Verification Portal</h1>
+        <p class="text-slate-300 text-sm max-w-2xl mx-auto">
+            Verify official vertical property ownership, 3D ULPIN authentication, registered title deeds, bank mortgages, and volumetric boundaries in the Digital India Cadastre.
+        </p>
+
+        <!-- Search Form -->
+        <form action="" method="GET" class="max-w-3xl mx-auto pt-2">
+            <div class="relative flex flex-col sm:flex-row gap-2">
+                <div class="relative flex-1">
+                    <input type="text" name="q" value="{{ query }}" placeholder="Search by 3D ULPIN, 2D ULPIN, Owner Name, Khasra Number, or Address..." class="w-full bg-slate-950 border border-slate-700 text-sm text-slate-100 placeholder-slate-500 pl-11 pr-4 py-3.5 rounded-xl focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-slate-500 text-base"></i>
+                </div>
+                <button type="submit" class="px-8 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-search"></i> Search Cadastre
+                </button>
+            </div>
+            <div class="flex items-center justify-center gap-3 text-xs text-slate-400 mt-3">
+                <span>Try searching:</span>
+                <a href="?q=Saraswati" class="text-amber-400 hover:underline">Saraswati</a>
+                <span>•</span>
+                <a href="?q=06GG0184920184" class="text-amber-400 hover:underline">06GG0184920184</a>
+                <span>•</span>
+                <a href="?q=Arvind" class="text-amber-400 hover:underline">Arvind</a>
+                <span>•</span>
+                <a href="?q=Metro" class="text-amber-400 hover:underline">Metro Hub</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Search Results Section -->
+    {% if query %}
+    <div class="space-y-6">
+        <div class="flex items-center justify-between">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-list-check text-amber-400"></i> Search Results for "<span class="text-amber-400">{{ query }}</span>"
+            </h3>
+            <span class="text-xs text-slate-400 font-mono">{{ units|length }} 3D Units found</span>
+        </div>
+
+        <!-- 3D Units Results -->
+        {% if units %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for u in units %}
+            <div class="rounded-2xl bg-slate-900 border border-slate-800 p-6 space-y-4 hover:border-slate-700 transition">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h4 class="text-base font-bold text-white">{{ u.unit_number }}</h4>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if u.status == 'REGISTERED' %}bg-emerald-500/20 text-emerald-400{% elif u.status == 'MORTGAGED' %}bg-amber-500/20 text-amber-400{% else %}bg-rose-500/20 text-rose-400{% endif %}">
+                                {{ u.get_status_display }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400">{{ u.building.name }} ({{ u.floor_name }})</p>
+                    </div>
+                    <span class="text-[10px] font-bold px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-purple-400 font-mono">
+                        {{ u.strata_type }}
+                    </span>
+                </div>
+
+                <!-- 3D ULPIN -->
+                <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs">
+                    <span class="text-[10px] text-slate-500 block uppercase">3D ULPIN:</span>
+                    <span class="text-amber-400 font-bold tracking-wide break-all">{{ u.ulpin_3d }}</span>
+                </div>
+
+                <!-- Spatial specs -->
+                <div class="grid grid-cols-3 gap-2 text-xs font-mono">
+                    <div class="p-2 rounded bg-slate-950 text-center">
+                        <span class="text-[9px] text-slate-500 block font-sans">Elevation (Z)</span>
+                        <span class="text-slate-200">{{ u.z_min_meters }}m - {{ u.z_max_meters }}m</span>
+                    </div>
+                    <div class="p-2 rounded bg-slate-950 text-center">
+                        <span class="text-[9px] text-slate-500 block font-sans">Carpet Area</span>
+                        <span class="text-slate-200">{{ u.carpet_area_sqm }} m²</span>
+                    </div>
+                    <div class="p-2 rounded bg-slate-950 text-center">
+                        <span class="text-[9px] text-slate-500 block font-sans">Volume</span>
+                        <span class="text-emerald-400 font-bold">{{ u.volume_cubic_meters }} m³</span>
+                    </div>
+                </div>
+
+                <!-- Ownership & Action -->
+                <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
+                    <div>
+                        {% if u.ownerships.first %}
+                        <span class="text-xs text-slate-300 font-medium">Owner: {{ u.ownerships.first.owner_name }}</span>
+                        {% else %}
+                        <span class="text-xs text-slate-400">Government / Common Asset</span>
+                        {% endif %}
+                    </div>
+                    <a href="{% url 'bhu_aadhaar_card' u.ulpin_3d %}" class="px-3.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-semibold text-xs flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-file-contract text-amber-400"></i> Certificate &rarr;
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-12 text-center rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+            <i class="fa-solid fa-file-circle-question text-4xl text-slate-600"></i>
+            <h4 class="text-base font-bold text-slate-300">No cadastral matches found</h4>
+            <p class="text-xs text-slate-500">Please check the ULPIN number, owner name, or survey plot number.</p>
+        </div>
+        {% endif %}
+
+        <!-- 2D Parcels Results if any -->
+        {% if parcels %}
+        <div class="space-y-4 pt-6">
+            <h4 class="text-base font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-map text-blue-400"></i> Matching 2D Base Parcels
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for p in parcels %}
+                <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-mono font-bold text-amber-400">{{ p.ulpin_2d }}</span>
+                        <h5 class="text-sm font-bold text-white mt-1">{{ p.khasra_survey_no }}</h5>
+                        <p class="text-xs text-slate-400">{{ p.address }}</p>
+                    </div>
+                    <a href="{% url 'explorer_3d' %}?parcel_id={{ p.id }}" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 transition">
+                        View in 3D &rarr;
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
