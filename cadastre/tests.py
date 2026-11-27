@@ -1,4 +1,5 @@
 from django.test import TestCase, Client
+from django.contrib.auth import get_user_model
 from django.urls import reverse
 import json
 
@@ -120,6 +121,9 @@ class CadastreViewTests(TestCase):
             registered_deed_no="REG/DEL/2024/9912",
             ownership_share_pct=100.0
         )
+        User = get_user_model()
+        self.officer = User.objects.create_user(username="officer1", password="secret123", is_staff=True)
+        self.citizen = User.objects.create_user(username="citizen1", password="secret123", is_staff=False)
 
     def test_dashboard_page(self):
         response = self.client.get(reverse('dashboard'))
@@ -140,10 +144,43 @@ class CadastreViewTests(TestCase):
         self.assertContains(response, "Vikram Seth")
         self.assertContains(response, "DIGITAL 3D BHU-AADHAAR PROPERTY CERTIFICATE")
 
-    def test_spatial_audit_page(self):
+    def test_spatial_audit_requires_officer(self):
+        # Anonymous citizen redirected to officer login
+        response = self.client.get(reverse('spatial_audit'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/officer-login/', response.url)
+
+        # Logged-in non-staff citizen also denied
+        self.client.force_login(self.citizen)
+        response = self.client.get(reverse('spatial_audit'))
+        self.assertEqual(response.status_code, 302)
+
+        # Logged-in officer allowed
+        self.client.force_login(self.officer)
         response = self.client.get(reverse('spatial_audit'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Spatial Audit")
+
+    def test_parcel_builder_and_ulpin_generator_require_officer(self):
+        for route_name in ('parcel_builder', 'ulpin_generator'):
+            res_anon = self.client.get(reverse(route_name))
+            self.assertEqual(res_anon.status_code, 302)
+            self.assertIn('/officer-login/', res_anon.url)
+
+            self.client.force_login(self.citizen)
+            res_citizen = self.client.get(reverse(route_name))
+            self.assertEqual(res_citizen.status_code, 302)
+            self.client.logout()
+
+        # API generation blocked for anonymous
+        res_api_anon = self.client.post(reverse('api_generate_ulpin_3d'), data={'base_2d_ulpin': self.parcel.ulpin_2d})
+        self.assertEqual(res_api_anon.status_code, 403)
+
+        # Officer login works and grants access
+        login_res = self.client.post(reverse('officer_login'), {'username': 'officer1', 'password': 'secret123'})
+        self.assertEqual(login_res.status_code, 302)
+        self.assertEqual(self.client.get(reverse('parcel_builder')).status_code, 200)
+        self.assertEqual(self.client.get(reverse('ulpin_generator')).status_code, 200)
 
     def test_public_search_page(self):
         response = self.client.get(reverse('public_search') + f"?q={self.unit.ulpin_3d}")

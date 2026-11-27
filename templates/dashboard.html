@@ -27,9 +27,15 @@
                 <a href="{% url 'explorer_3d' %}" class="px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 transition">
                     <i class="fa-solid fa-cube text-base"></i> Launch 3D Explorer
                 </a>
+                {% if user.is_staff %}
                 <a href="{% url 'ulpin_generator' %}" class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-sm flex items-center gap-2 transition">
                     <i class="fa-solid fa-barcode text-amber-400"></i> Generate 3D ULPIN
                 </a>
+                {% else %}
+                <a href="{% url 'public_search' %}" class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-sm flex items-center gap-2 transition">
+                    <i class="fa-solid fa-magnifying-glass text-amber-400"></i> Verify Property
+                </a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -94,7 +100,11 @@
                 <span class="text-xs text-rose-400/80 ml-2 font-semibold">Active Alerts</span>
             </div>
             <p class="text-xs text-slate-500 mt-2">
+                {% if user.is_staff %}
                 <a href="{% url 'spatial_audit' %}" class="text-rose-400 hover:underline">Inspect audit logs &rarr;</a>
+                {% else %}
+                Monitored by DoLR Spatial Audit
+                {% endif %}
             </p>
         </div>
     </div>
@@ -190,9 +200,11 @@
                 </h3>
                 <p class="text-xs text-slate-400">Land parcels georeferenced with multi-story buildings and volumetric units.</p>
             </div>
+            {% if user.is_staff %}
             <a href="{% url 'parcel_builder' %}" class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 flex items-center gap-2 transition">
                 <i class="fa-solid fa-plus text-amber-400"></i> Create 3D Parcel
             </a>
+            {% endif %}
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

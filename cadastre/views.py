@@ -4,7 +4,10 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Sum, Count, Avg
 from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import user_passes_test
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from .models import (
     CadastralZone,
@@ -94,6 +97,44 @@ def explorer_3d_view(request):
     return render(request, 'explorer_3d.html', context)
 
 
+def officer_required(view_func):
+    """Restricts access to authenticated government officers/staff."""
+    return user_passes_test(
+        lambda u: u.is_active and u.is_staff,
+        login_url='/officer-login/'
+    )(view_func)
+
+
+def officer_login_view(request):
+    """Login portal for authorized DoLR officers, surveyors, and registrars."""
+    next_url = request.GET.get('next') or request.POST.get('next') or ''
+    if request.user.is_authenticated and request.user.is_staff:
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+        user = authenticate(request, username=username, password=password)
+        if user is not None and user.is_staff:
+            login(request, user)
+            messages.success(request, f"Signed in as Officer '{user.username}'.")
+            if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+                return redirect(next_url)
+            return redirect('dashboard')
+        messages.error(request, "Invalid officer credentials or insufficient permissions.")
+
+    return render(request, 'officer_login.html', {'next': next_url})
+
+
+def officer_logout_view(request):
+    """Logs out the currently signed-in officer."""
+    if request.method == 'POST':
+        logout(request)
+        messages.info(request, "You have been signed out.")
+    return redirect('dashboard')
+
+
+@officer_required
 def ulpin_generator_view(request):
     """
     Interactive 3D ULPIN Generator & Batch Synthesis Tool.
@@ -200,6 +241,7 @@ def bhu_aadhaar_card_view(request, ulpin_3d):
     return render(request, 'bhu_aadhaar_card.html', context)
 
 
+@officer_required
 def spatial_audit_view(request):
     """
     Automated 3D Conflict, Height Limit & FAR Encroachment Detection Engine.
@@ -289,6 +331,7 @@ def public_search_view(request):
     return render(request, 'public_search.html', context)
 
 
+@officer_required
 def parcel_builder_view(request):
     """
     Surveyor / Administrator 3D Parcel & Vertical Strata Creator.
@@ -497,8 +540,10 @@ def api_parcel_3d_data(request, parcel_id):
 @csrf_exempt
 def api_generate_ulpin_3d(request):
     """
-    REST API to calculate 3D ULPIN on the fly.
+    REST API to calculate 3D ULPIN on the fly (authorized officers only).
     """
+    if not (request.user.is_authenticated and request.user.is_staff):
+        return JsonResponse({'error': 'Authorized government officer credentials required.'}, status=403)
     if request.method != 'POST':
         return JsonResponse({'error': 'POST method required'}, status=405)
         
